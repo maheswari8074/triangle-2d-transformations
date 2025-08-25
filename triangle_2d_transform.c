@@ -1,126 +1,85 @@
-#include <stdio.h>
+#include <GL/glut.h>
 #include <math.h>
-#include <graphics.h>
 
-struct Point {
-    float x, y;
-};
+float tx = 0.0f, ty = 0.0f;   // translation
+float angle = 0.0f;           // rotation angle
+float sx = 1.0f, sy = 1.0f;   // scaling
+int reflectX = 1, reflectY = 1; // reflection toggle
 
-void drawTriangle(struct Point t[3], int color) {
-    setcolor(color);
-    line(t[0].x, t[0].y, t[1].x, t[1].y);
-    line(t[1].x, t[1].y, t[2].x, t[2].y);
-    line(t[2].x, t[2].y, t[0].x, t[0].y);
+void drawAxes() {
+    glColor3f(1, 1, 1);  // white axes
+    glBegin(GL_LINES);
+        // X-axis
+        glVertex2f(-2.0f, 0.0f);
+        glVertex2f( 2.0f, 0.0f);
+        // Y-axis
+        glVertex2f(0.0f, -2.0f);
+        glVertex2f(0.0f,  2.0f);
+    glEnd();
 }
 
-void translate(struct Point t[3], float tx, float ty) {
-    for (int i = 0; i < 3; i++) {
-        t[i].x += tx;
-        t[i].y += ty;
-    }
+void drawTriangle() {
+    glBegin(GL_TRIANGLES);
+        glColor3f(1,0,0); glVertex2f(0.0f, 0.5f);
+        glColor3f(0,1,0); glVertex2f(-0.5f, -0.5f);
+        glColor3f(0,0,1); glVertex2f(0.5f, -0.5f);
+    glEnd();
 }
 
-void scale(struct Point t[3], float sx, float sy) {
-    for (int i = 0; i < 3; i++) {
-        t[i].x *= sx;
-        t[i].y *= sy;
-    }
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    drawAxes();  // draw X and Y axes for reference
+
+    glPushMatrix();
+
+    // Apply transformations
+    glTranslatef(tx, ty, 0.0f);                   // Translation
+    glRotatef(angle, 0.0f, 0.0f, 1.0f);           // Rotate around Z-axis
+    glScalef(sx * reflectX, sy * reflectY, 1.0f); // Scale + reflect
+
+    drawTriangle();
+
+    glPopMatrix();
+
+    glutSwapBuffers();
 }
 
-void rotateTriangle(struct Point t[3], float angle) {
-    float rad = angle * M_PI / 180.0;
-    for (int i = 0; i < 3; i++) {
-        float x_new = t[i].x * cos(rad) - t[i].y * sin(rad);
-        float y_new = t[i].x * sin(rad) + t[i].y * cos(rad);
-        t[i].x = x_new;
-        t[i].y = y_new;
+void keyboard(unsigned char key, int x, int y) {
+    switch (key) {
+        case 'w': ty += 0.1f; break;
+        case 's': ty -= 0.1f; break;
+        case 'a': tx -= 0.1f; break;
+        case 'd': tx += 0.1f; break;
+
+        case 'r': angle += 10.0f; break;
+        case 'e': angle -= 10.0f; break;
+
+        case 'x': sx += 0.1f; sy += 0.1f; break;
+        case 'z': sx -= 0.1f; sy -= 0.1f; break;
+
+        case 'h': reflectX *= -1; break;
+        case 'v': reflectY *= -1; break;
+
+        case 27: exit(0); // ESC to quit
     }
+    glutPostRedisplay();
 }
 
-void reflect(struct Point t[3], int axis) {
-    for (int i = 0; i < 3; i++) {
-        if (axis == 1) t[i].y = -t[i].y;       // X-axis
-        else if (axis == 2) t[i].x = -t[i].x;  // Y-axis
-        else if (axis == 3) {                  // Origin
-            t[i].x = -t[i].x;
-            t[i].y = -t[i].y;
-        }
-    }
-}
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+    glutInitWindowSize(600, 600);
+    glutCreateWindow("2D Transformations with Axes");
 
-void shear(struct Point t[3], float shx, float shy) {
-    for (int i = 0; i < 3; i++) {
-        float x_new = t[i].x + shx * t[i].y;
-        float y_new = t[i].y + shy * t[i].x;
-        t[i].x = x_new;
-        t[i].y = y_new;
-    }
-}
+    glClearColor(0, 0, 0, 1);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(-2, 2, -2, 2);
 
-int main() {
-    struct Point tri[3];
-    int gd = DETECT, gm;
-    int choice;
+    glutDisplayFunc(display);
+    glutKeyboardFunc(keyboard);
 
-    printf("Enter coordinates of triangle vertices (x y):\n");
-    for (int i = 0; i < 3; i++) {
-        scanf("%f %f", &tri[i].x, &tri[i].y);
-    }
-
-    initgraph(&gd, &gm, ""); // Initialize graphics mode
-
-    while (1) {
-        cleardevice();
-        drawTriangle(tri, WHITE);
-
-        printf("\n--- 2D Triangle Transformations ---\n");
-        printf("1. Translation\n2. Scaling\n3. Rotation\n4. Reflection\n5. Shearing\n6. Exit\n");
-        printf("Choose an option: ");
-        scanf("%d", &choice);
-
-        if (choice == 6) break;
-
-        switch (choice) {
-            case 1: {
-                float tx, ty;
-                printf("Enter tx and ty: ");
-                scanf("%f %f", &tx, &ty);
-                translate(tri, tx, ty);
-                break;
-            }
-            case 2: {
-                float sx, sy;
-                printf("Enter sx and sy: ");
-                scanf("%f %f", &sx, &sy);
-                scale(tri, sx, sy);
-                break;
-            }
-            case 3: {
-                float angle;
-                printf("Enter rotation angle (degrees): ");
-                scanf("%f", &angle);
-                rotateTriangle(tri, angle);
-                break;
-            }
-            case 4: {
-                int axis;
-                printf("Reflect over: 1.X-axis  2.Y-axis  3.Origin : ");
-                scanf("%d", &axis);
-                reflect(tri, axis);
-                break;
-            }
-            case 5: {
-                float shx, shy;
-                printf("Enter shx and shy: ");
-                scanf("%f %f", &shx, &shy);
-                shear(tri, shx, shy);
-                break;
-            }
-            default:
-                printf("Invalid choice!\n");
-        }
-    }
-
-    closegraph();
+    glutMainLoop();
     return 0;
 }
